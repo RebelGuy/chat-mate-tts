@@ -1,6 +1,7 @@
 import readline from 'readline'
 import { spawn } from 'child_process'
 import { Readable } from 'stream'
+import { rm } from 'fs/promises'
 
 // const SERVER_URL = 'https://chat-mate-prod.azurewebsites.net'
 const SERVER_URL = 'http://localhost:3010'
@@ -59,11 +60,36 @@ async function playAudioFromText (...str: string[]) {
 
   const readable = Readable.from(audioStream)
 
-  const ffplayProcess = spawn('ffplay', ['-nodisp', '-autoexit', `-volume`, `${AUDIO_VOLUME}`, '-f', 'wav', '-'], {
-    stdio: ['pipe', 'inherit', 'inherit']
+  let id = Date.now()
+  let i = 0
+  let files: string[] = []
+  readable.on('data', data => {
+    i++
+    const fileName = `chunk_${i}`
+    Bun.write(`./data/${id}/` + fileName, data)
+    files.push(fileName)
   })
 
-  readable.pipe(ffplayProcess.stdin)
+  readable.on('end', () => {
+    const fileList = `./data/${id}/files.txt`
+    Bun.write(fileList, files.map(fileName => `file '${fileName}'`).join('\r\n'))
+    const ffmpeg = spawn('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', fileList, '-c', 'copy', `./data/${id}/output.wav`])
+    
+    ffmpeg.on('exit', () => {
+      const ffplay = spawn('ffplay', ['-nodisp', '-autoexit', `./data/${id}/output.wav`])
+      
+      ffplay.on('exit', () => {
+        console.log('done')
+        rm(`./data/${id}`, { recursive: true, force: true })
+      })
+    })
+  })
+
+  // const ffplayProcess = spawn('ffplay', ['-nodisp', '-autoexit', `-volume`, `${AUDIO_VOLUME}`, '-f', 'wav', '-'], {
+  //   stdio: ['pipe', 'inherit', 'inherit']
+  // })
+
+  // readable.pipe(ffplayProcess.stdin)
 }
 
 // outputs the file name
