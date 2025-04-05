@@ -19,45 +19,49 @@ const AUDIO_VOLUME = 100 // between 0 and 100
 
 const WEBSOCKET_URL = `${SERVER_URL.replace('http', 'ws')}/ws`
 
-const socket = new WebSocket(WEBSOCKET_URL)
+function connectToWebsocket() {
+  const socket = new WebSocket(WEBSOCKET_URL)
 
-socket.addEventListener("message", async event => {
-  const msg = JSON.parse(event.data.toString())
+  socket.addEventListener("message", async event => {
+    const msg = JSON.parse(event.data.toString())
 
-  if (msg.type === 'event' && msg.data.topic === 'streamerChat') {
-    const messageParts = msg.data.data.messageParts as any[]
-    console.log(messageParts)
+    if (msg.type === 'event' && msg.data.topic === 'streamerChat') {
+      const messageParts = msg.data.data.messageParts as any[]
+      console.log(messageParts)
 
-    const stringifiedParts = messageParts.map(part => part.type === 'text' ? part.textData.text : part.type === 'emoji' ? part.emojiData.name : part.type === 'customEmoji' ? part.customEmojiData.textData?.text ?? '' : '')
-    const text = stringifiedParts.join(' ')
+      const stringifiedParts = messageParts.map(part => part.type === 'text' ? part.textData.text : part.type === 'emoji' ? part.emojiData.name : part.type === 'customEmoji' ? part.customEmojiData.textData?.text ?? '' : '')
+      const text = stringifiedParts.join(' ')
 
-    try {
-      await playAudioFromText(text)
-    } catch (e) {
-      console.error('Failed to convert chat message to speech:', e)
+      try {
+        await playAudioFromTextQuick(text)
+      } catch (e) {
+        console.error('Failed to convert chat message to speech:', e)
+      }
     }
-  }
-})
+  })
 
-socket.addEventListener("open", event => {
-  console.log('Connected to websocket')
+  socket.addEventListener("open", event => {
+    console.log('Connected to websocket')
 
-  socket.send(JSON.stringify({
-    type: 'subscribe',
-    data: {
-      topic: 'streamerChat',
-      streamer: 'rebel_guy'
-    }
-  }))
-})
+    socket.send(JSON.stringify({
+      type: 'subscribe',
+      data: {
+        topic: 'streamerChat',
+        streamer: 'rebel_guy'
+      }
+    }))
+  })
 
-socket.addEventListener("close", event => {
-  console.log('close:', event.wasClean)
-})
+  socket.addEventListener("close", event => {
+    console.log('close:', event.wasClean)
 
-socket.addEventListener("error", event => {
-  console.log('error:', event)
-})
+    connectToWebsocket()
+  })
+
+  socket.addEventListener("error", event => {
+    console.log('error:', event)
+  })
+}
 
 async function playAudioFromText (...str: string[]) {
   const audioStream = await generateSpeech(...str)
@@ -136,7 +140,6 @@ async function playAudioFromTextQuick (str: string) {
     stdin: 'pipe',
     stdout: 'ignore',
     stderr: 'ignore',
-    onExit: () => console.log('Done')
   })
 
   process.stdin.write(file)
@@ -163,9 +166,10 @@ const rl = readline.createInterface({
 
 function getInput () {
   rl.question('', (input: string) => {
-    playAudioFromText(...input.split('.'))
+    playAudioFromTextQuick(input)
     getInput()
   })
 }
 
+connectToWebsocket()
 getInput()
