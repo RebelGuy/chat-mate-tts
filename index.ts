@@ -54,8 +54,8 @@ socket.addEventListener("error", event => {
   console.log('error:', event)
 })
 
-async function playAudioFromText (str: string) {
-  const audioStream = await generateSpeech(str)
+async function playAudioFromText (...str: string[]) {
+  const audioStream = await generateSpeech(...str)
 
   const readable = Readable.from(audioStream)
 
@@ -67,7 +67,7 @@ async function playAudioFromText (str: string) {
 }
 
 // outputs the file name
-async function generateSpeech (str: string): Promise<ReadableStream> {
+async function generateSpeech (...str: string[]): Promise<ReadableStream> {
   const response = await Bun.fetch(`${ZONOS_URL}/v1/audio/speech`, { method: 'POST', body: JSON.stringify({
     model: ZONOS_MODEL,
     input: str,
@@ -106,7 +106,7 @@ const rl = readline.createInterface({
 
 function getInput () {
   rl.question('', (input: string) => {
-    playAudioFromText(input)
+    playAudioFromText(...input.split('.'))
     getInput()
   })
 }
