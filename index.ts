@@ -8,8 +8,12 @@ const SERVER_URL = 'http://localhost:3010'
 
 const ZONOS_URL = 'http://localhost:8001'
 
+const COQUI_URL = 'http://localhost:5002'
+
 const ZONOS_MODEL = 'transformer'
 // const ZONOS_MODEL = 'hybrid'
+
+const COQUI_SPEAKER_ID = 'p230'
 
 const AUDIO_VOLUME = 100 // between 0 and 100
 
@@ -122,6 +126,33 @@ async function generateSpeech (...str: string[]): Promise<ReadableStream> {
   }
 
   return response.body!
+}
+
+async function playAudioFromTextQuick (str: string) {
+  const file = await generateSpeechQuick(str)
+
+  const process = Bun.spawn({
+    cmd: ['ffplay', '-nodisp', '-autoexit', `-`],
+    stdin: 'pipe',
+    stdout: 'ignore',
+    stderr: 'ignore',
+    onExit: () => console.log('Done')
+  })
+
+  process.stdin.write(file)
+  process.stdin.flush()
+  process.stdin.end()
+}
+
+// outputs the file name
+async function generateSpeechQuick (str: string): Promise<ArrayBuffer> {
+  const response = await fetch(`${COQUI_URL}/api/tts?text=${encodeURI(str)}&speaker_id=${COQUI_SPEAKER_ID}`, { method: 'GET' })
+
+  if (!response.ok) {
+    throw new Error(`Failed to generate speech. Code ${response.status}: ${await response.text()}`)
+  }
+
+  return await response.arrayBuffer()
 }
 
 // Create an interface for reading input from stdin

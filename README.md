@@ -21,6 +21,11 @@ Prototype for text-to-speech integration with ChatMate using [Zonos](https://git
 - A running instance of [Zonos-API](https://github.com/PhialsBasement/Zonos-API)
   - `sudo docker-compose up zonos-api`
 - [Bun](https://bun.sh/docs/installation)
+- A running instance of [Coqui TTS](https://github.com/coqui-ai/TTS)
+  - `sudo docker pull ghcr.io/coqui-ai/tts`
+  - Run the container: `sudo docker run --rm -it -p 5002:5002 --gpus all --entrypoint /bin/bash ghcr.io/coqui-ai/tts`
+  - Check the list of models: `python3 TTS/server/server.py --list_models #To get the list of available models`
+  - Start the REST API server: `python3 TTS/server/server.py --model_name tts_models/en/vctk/vits --use_cuda true`
 
 To install dependencies:
 
