@@ -1,22 +1,12 @@
 import readline from 'readline'
-import { spawn } from 'child_process'
-import { Readable } from 'stream'
-import { rm } from 'fs/promises'
 
 const SERVER_URL = 'https://chat-mate-prod.azurewebsites.net'
 // const SERVER_URL = 'http://localhost:3010'
 
-const ZONOS_URL = 'http://localhost:8001'
-
 const COQUI_URL = 'http://localhost:5002'
-
-const ZONOS_MODEL = 'transformer'
-// const ZONOS_MODEL = 'hybrid'
 
 // const COQUI_SPEAKER_ID = 'p263'
 const COQUI_SPEAKER_IDS = ["ED","p225","p226","p227","p228","p229","p230","p231","p232","p233","p234","p236","p237","p238","p239","p240","p241","p243","p244","p245","p246","p247","p248","p249","p250","p251","p252","p253","p254","p255","p256","p257","p258","p259","p260","p261","p262","p263","p264","p265","p266","p267","p268","p269","p270","p271","p272","p273","p274","p275","p276","p277","p278","p279","p280","p281","p282","p283","p284","p285","p286","p287","p288","p292","p293","p294","p295","p297","p298","p299","p300","p301","p302","p303","p304","p305","p306","p307","p308","p310","p311","p312","p313","p314","p316","p317","p318","p323","p326","p329","p330","p333","p334","p335","p336","p339","p340","p341","p343","p345","p347","p351","p360","p361","p362","p363","p364","p374","p376"]
-
-const AUDIO_VOLUME = 100 // between 0 and 100
 
 const WEBSOCKET_URL = `${SERVER_URL.replace('http', 'ws')}/ws`
 
@@ -62,75 +52,6 @@ function connectToWebsocket() {
   socket.addEventListener("error", event => {
     console.log('error:', event)
   })
-}
-
-async function playAudioFromText (...str: string[]) {
-  const audioStream = await generateSpeech(...str)
-
-  const readable = Readable.from(audioStream)
-
-  let id = Date.now()
-  let i = 0
-  let files: string[] = []
-  readable.on('data', data => {
-    i++
-    const fileName = `chunk_${i}`
-    Bun.write(`./data/${id}/` + fileName, data)
-    files.push(fileName)
-  })
-
-  readable.on('end', () => {
-    const fileList = `./data/${id}/files.txt`
-    Bun.write(fileList, files.map(fileName => `file '${fileName}'`).join('\r\n'))
-    const ffmpeg = spawn('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', fileList, '-c', 'copy', `./data/${id}/output.wav`])
-    
-    ffmpeg.on('exit', () => {
-      const ffplay = spawn('ffplay', ['-nodisp', '-autoexit', `./data/${id}/output.wav`])
-      
-      ffplay.on('exit', () => {
-        console.log('done')
-        rm(`./data/${id}`, { recursive: true, force: true })
-      })
-    })
-  })
-
-  // const ffplayProcess = spawn('ffplay', ['-nodisp', '-autoexit', `-volume`, `${AUDIO_VOLUME}`, '-f', 'wav', '-'], {
-  //   stdio: ['pipe', 'inherit', 'inherit']
-  // })
-
-  // readable.pipe(ffplayProcess.stdin)
-}
-
-// outputs the file name
-async function generateSpeech (...str: string[]): Promise<ReadableStream> {
-  const response = await Bun.fetch(`${ZONOS_URL}/v1/audio/speech`, { method: 'POST', body: JSON.stringify({
-    model: ZONOS_MODEL,
-    input: str,
-    // voice: 'voice_id',
-    // speed: 1, // between 0.5 and 2
-    language: 'en-us',
-    // emotion: {
-    //   happiness: 1,
-    //   sadness: 0.05,
-    //   disgust: 0.05,
-    //   fear: 0.05,
-    //   surprise: 0.05,
-    //   anger: 0.05,
-    //   other: 0.1,
-    //   neutral: 0.2
-    // },
-    response_format: 'wav',
-    // prefix_audio: 'voice_id',
-    // top_k: 1, // Top-K sampling: Limits selection to K most likely tokens
-    // top_p: 1, // Top-P (nucleus) sampling: Dynamically limits token selection
-    // min_p: 0.15 // Min-P sampling: Excludes tokens below probability threshold
-  })})
-
-  if (!response.ok) {
-    throw new Error(`Failed to generate speech. Code ${response.status}: ${await response.text()}`)
-  }
-
-  return response.body!
 }
 
 async function playAudioFromTextQuick (str: string) {
