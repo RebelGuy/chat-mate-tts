@@ -1,6 +1,6 @@
 # chat-mate-tts
 
-Prototype for text-to-speech integration with [ChatMate](https://github.com/RebelGuy/chat-mate) using [Zonos](https://github.com/Zyphra/Zonos). Livestream chat messages are converted to audio as they come in, then automatically played to the user.
+Prototype for text-to-speech integration with [ChatMate](https://github.com/RebelGuy/chat-mate) using [Coqui TTS](https://github.com/coqui-ai/TTS). Livestream chat messages are converted to audio as they come in, then automatically played to the user.
 
 
 ## Dependencies
@@ -24,12 +24,8 @@ Prototype for text-to-speech integration with [ChatMate](https://github.com/Rebe
     - Run the container: `sudo docker run --rm -it -p 5002:5002 --gpus all --entrypoint /bin/bash ghcr.io/coqui-ai/tts`
     - Check the list of models: `python3 TTS/server/server.py --list_models`
     - Start the REST API server: `python3 TTS/server/server.py --model_name tts_models/en/vctk/vits --use_cuda true`
-- One of the following:
-  - A running instance of [Zonos-API](https://github.com/PhialsBasement/Zonos-API)
-    - `sudo docker-compose up zonos-api`
-    - This is very slow and not suitable for production
 
-To install dependencies:
+To install Node dependencies:
 
 ```bash
 bun install
