@@ -1,127 +1,84 @@
 import readline from 'readline'
-import { spawn } from 'child_process'
-import { Readable } from 'stream'
-import { rm } from 'fs/promises'
 
-// const SERVER_URL = 'https://chat-mate-prod.azurewebsites.net'
-const SERVER_URL = 'http://localhost:3010'
+const SERVER_URL = 'https://chat-mate-prod.azurewebsites.net'
+// const SERVER_URL = 'http://localhost:3010'
 
-const ZONOS_URL = 'http://localhost:8001'
+const COQUI_URL = 'http://localhost:5002'
 
-const ZONOS_MODEL = 'transformer'
-// const ZONOS_MODEL = 'hybrid'
-
-const AUDIO_VOLUME = 100 // between 0 and 100
+// const COQUI_SPEAKER_ID = 'p263'
+const COQUI_SPEAKER_IDS = ["ED","p225","p226","p227","p228","p229","p230","p231","p232","p233","p234","p236","p237","p238","p239","p240","p241","p243","p244","p245","p246","p247","p248","p249","p250","p251","p252","p253","p254","p255","p256","p257","p258","p259","p260","p261","p262","p263","p264","p265","p266","p267","p268","p269","p270","p271","p272","p273","p274","p275","p276","p277","p278","p279","p280","p281","p282","p283","p284","p285","p286","p287","p288","p292","p293","p294","p295","p297","p298","p299","p300","p301","p302","p303","p304","p305","p306","p307","p308","p310","p311","p312","p313","p314","p316","p317","p318","p323","p326","p329","p330","p333","p334","p335","p336","p339","p340","p341","p343","p345","p347","p351","p360","p361","p362","p363","p364","p374","p376"]
 
 const WEBSOCKET_URL = `${SERVER_URL.replace('http', 'ws')}/ws`
 
-const socket = new WebSocket(WEBSOCKET_URL)
+function connectToWebsocket() {
+  const socket = new WebSocket(WEBSOCKET_URL)
 
-socket.addEventListener("message", async event => {
-  const msg = JSON.parse(event.data.toString())
+  socket.addEventListener("message", async event => {
+    const msg = JSON.parse(event.data.toString())
 
-  if (msg.type === 'event' && msg.data.topic === 'streamerChat') {
-    const messageParts = msg.data.data.messageParts as any[]
-    console.log(messageParts)
+    if (msg.type === 'event' && msg.data.topic === 'streamerChat') {
+      const messageParts = msg.data.data.messageParts as any[]
+      console.log(messageParts)
 
-    const stringifiedParts = messageParts.map(part => part.type === 'text' ? part.textData.text : part.type === 'emoji' ? part.emojiData.name : part.type === 'customEmoji' ? part.customEmojiData.textData?.text ?? '' : '')
-    const text = stringifiedParts.join(' ')
+      const stringifiedParts = messageParts.map(part => part.type === 'text' ? part.textData.text : part.type === 'emoji' ? part.emojiData.name : part.type === 'customEmoji' ? part.customEmojiData.textData?.text ?? '' : '')
+      const text = stringifiedParts.join(' ')
 
-    try {
-      await playAudioFromText(text)
-    } catch (e) {
-      console.error('Failed to convert chat message to speech:', e)
+      try {
+        await playAudioFromTextQuick(text)
+      } catch (e) {
+        console.error('Failed to convert chat message to speech:', e)
+      }
     }
-  }
-})
-
-socket.addEventListener("open", event => {
-  console.log('Connected to websocket')
-
-  socket.send(JSON.stringify({
-    type: 'subscribe',
-    data: {
-      topic: 'streamerChat',
-      streamer: 'rebel_guy'
-    }
-  }))
-})
-
-socket.addEventListener("close", event => {
-  console.log('close:', event.wasClean)
-})
-
-socket.addEventListener("error", event => {
-  console.log('error:', event)
-})
-
-async function playAudioFromText (...str: string[]) {
-  const audioStream = await generateSpeech(...str)
-
-  const readable = Readable.from(audioStream)
-
-  let id = Date.now()
-  let i = 0
-  let files: string[] = []
-  readable.on('data', data => {
-    i++
-    const fileName = `chunk_${i}`
-    Bun.write(`./data/${id}/` + fileName, data)
-    files.push(fileName)
   })
 
-  readable.on('end', () => {
-    const fileList = `./data/${id}/files.txt`
-    Bun.write(fileList, files.map(fileName => `file '${fileName}'`).join('\r\n'))
-    const ffmpeg = spawn('ffmpeg', ['-y', '-f', 'concat', '-safe', '0', '-i', fileList, '-c', 'copy', `./data/${id}/output.wav`])
-    
-    ffmpeg.on('exit', () => {
-      const ffplay = spawn('ffplay', ['-nodisp', '-autoexit', `./data/${id}/output.wav`])
-      
-      ffplay.on('exit', () => {
-        console.log('done')
-        rm(`./data/${id}`, { recursive: true, force: true })
-      })
-    })
+  socket.addEventListener("open", event => {
+    console.log('Connected to websocket')
+
+    socket.send(JSON.stringify({
+      type: 'subscribe',
+      data: {
+        topic: 'streamerChat',
+        streamer: 'rebel_guy'
+      }
+    }))
   })
 
-  // const ffplayProcess = spawn('ffplay', ['-nodisp', '-autoexit', `-volume`, `${AUDIO_VOLUME}`, '-f', 'wav', '-'], {
-  //   stdio: ['pipe', 'inherit', 'inherit']
-  // })
+  socket.addEventListener("close", event => {
+    console.log('close:', event.wasClean)
 
-  // readable.pipe(ffplayProcess.stdin)
+    connectToWebsocket()
+  })
+
+  socket.addEventListener("error", event => {
+    console.log('error:', event)
+  })
+}
+
+async function playAudioFromTextQuick (str: string) {
+  const file = await generateSpeechQuick(str)
+
+  const process = Bun.spawn({
+    cmd: ['ffplay', '-nodisp', '-autoexit', `-`],
+    stdin: 'pipe',
+    stdout: 'ignore',
+    stderr: 'ignore',
+  })
+
+  process.stdin.write(file)
+  process.stdin.flush()
+  process.stdin.end()
 }
 
 // outputs the file name
-async function generateSpeech (...str: string[]): Promise<ReadableStream> {
-  const response = await Bun.fetch(`${ZONOS_URL}/v1/audio/speech`, { method: 'POST', body: JSON.stringify({
-    model: ZONOS_MODEL,
-    input: str,
-    // voice: 'voice_id',
-    // speed: 1, // between 0.5 and 2
-    language: 'en-us',
-    // emotion: {
-    //   happiness: 1,
-    //   sadness: 0.05,
-    //   disgust: 0.05,
-    //   fear: 0.05,
-    //   surprise: 0.05,
-    //   anger: 0.05,
-    //   other: 0.1,
-    //   neutral: 0.2
-    // },
-    response_format: 'wav',
-    // prefix_audio: 'voice_id',
-    // top_k: 1, // Top-K sampling: Limits selection to K most likely tokens
-    // top_p: 1, // Top-P (nucleus) sampling: Dynamically limits token selection
-    // min_p: 0.15 // Min-P sampling: Excludes tokens below probability threshold
-  })})
+async function generateSpeechQuick (str: string): Promise<ArrayBuffer> {
+  const speaker = COQUI_SPEAKER_IDS[Math.floor(Math.random() * COQUI_SPEAKER_IDS.length)]
+  const response = await fetch(`${COQUI_URL}/api/tts?text=${encodeURI(str)}&speaker_id=${speaker}`, { method: 'GET' })
 
   if (!response.ok) {
     throw new Error(`Failed to generate speech. Code ${response.status}: ${await response.text()}`)
   }
 
-  return response.body!
+  return await response.arrayBuffer()
 }
 
 // Create an interface for reading input from stdin
@@ -132,9 +89,10 @@ const rl = readline.createInterface({
 
 function getInput () {
   rl.question('', (input: string) => {
-    playAudioFromText(...input.split('.'))
+    playAudioFromTextQuick(input)
     getInput()
   })
 }
 
+connectToWebsocket()
 getInput()
