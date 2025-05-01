@@ -10,7 +10,10 @@ const COQUI_SPEAKER_IDS = ["ED","p225","p226","p227","p228","p229","p230","p231"
 
 const WEBSOCKET_URL = `${SERVER_URL.replace('http', 'ws')}/ws`
 
+const PING_INTERVAL = 10_000
+
 function connectToWebsocket() {
+  let interval: NodeJS.Timeout | null = null
   const socket = new WebSocket(WEBSOCKET_URL)
 
   socket.addEventListener("message", async event => {
@@ -33,6 +36,7 @@ function connectToWebsocket() {
 
   socket.addEventListener("open", event => {
     console.log('Connected to websocket')
+    interval = setInterval(() => socket.ping(), PING_INTERVAL)
 
     socket.send(JSON.stringify({
       type: 'subscribe',
@@ -45,6 +49,10 @@ function connectToWebsocket() {
 
   socket.addEventListener("close", event => {
     console.log('close:', event.wasClean)
+    
+    if (interval != null) {
+      clearInterval(interval)
+    }
 
     connectToWebsocket()
   })
