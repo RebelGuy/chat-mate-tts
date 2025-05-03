@@ -24,6 +24,9 @@ Prototype for text-to-speech integration with [ChatMate](https://github.com/Rebe
     - Run the container: `sudo docker run --rm -it -p 5002:5002 --gpus all --entrypoint /bin/bash ghcr.io/coqui-ai/tts`
     - Check the list of models: `python3 TTS/server/server.py --list_models`
     - Start the REST API server: `python3 TTS/server/server.py --model_name tts_models/en/vctk/vits --use_cuda true`
+  - [Ollama](https://ollama.com/download)
+    - `ollama run gemma3:4b` to download the model
+    - `ollama create tts-filter -f ./Modelfile` to create the custom chat filter. This needs to be run whenever the `Modelfile` is changed.
 
 To install Node dependencies:
 
